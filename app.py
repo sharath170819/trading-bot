@@ -17,19 +17,20 @@ def place_coindcx_futures_order(pair, side, leverage, margin_usdt):
     try:
         url = f"{COINDCX_BASE_URL}/exchange/v1/derivatives/futures/orders/create"
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
-        
-        timeStamp = int(time.time())
+        timeStamp = int(round(time.time() * 1000))
 
-        # SOL Futures calculation (~$75/SOL)
-        total_qty = round((float(margin_usdt) * int(leverage)) / 75.0, 2)
+        # SOL Price ~ $75.5
+        # Quantity calculation formatted properly for Futures contract decimal precision
+        calc_qty = (float(margin_usdt) * int(leverage)) / 75.5
+        total_qty = round(calc_qty, 1)  # Futures requires 1 decimal precision for SOL
         if total_qty <= 0:
             total_qty = 0.1
 
         body = {
             "timestamp": timeStamp,
             "order_type": "market_order",
-            "side": side.lower(),       # buy / sell
-            "pair": pair,               # B-SOL_USDT
+            "side": side.lower(),       # "buy"
+            "pair": pair,               # "B-SOL_USDT"
             "leverage": int(leverage),   # 10
             "total_quantity": total_qty
         }
@@ -40,19 +41,19 @@ def place_coindcx_futures_order(pair, side, leverage, margin_usdt):
         headers = {
             'Content-Type': 'application/json',
             'X-AUTH-APIKEY': COINDCX_API_KEY,
-            'X-AUTH-SIGNATURE': signature,
-            'X-AUTH-PAYLOAD': json_body
+            'X-AUTH-SIGNATURE': signature
         }
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
 
-        if res.text:
+        # Handle API response accurately
+        if res.status_code == 200:
+            return res.json()
+        else:
             try:
-                return res.json()
+                return {"status_code": res.status_code, "error_details": res.json()}
             except Exception:
                 return {"status_code": res.status_code, "raw_response": res.text}
-        else:
-            return {"status_code": res.status_code, "message": "Empty response from CoinDCX Futures Server"}
 
     except Exception as e:
         return {"error": str(e)}
@@ -73,7 +74,6 @@ def execute():
 
     dcx_order = place_coindcx_futures_order(coindcx_futures_pair, "buy", leverage, margin)
 
-    # Key name matched to index.html ('coindcx_response')
     return jsonify({
         "coindcx_response": dcx_order
     })
