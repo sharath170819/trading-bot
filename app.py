@@ -7,26 +7,35 @@ import json
 
 app = Flask(__name__)
 
-# ==================== YOUR COINDCX API KEYS ====================
+# ==================== YOUR COINDCX FUTURES API KEYS ====================
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
 
 COINDCX_BASE_URL = "https://api.coindcx.com"
 
-def place_coindcx_order(symbol, side, quantity):
+def place_coindcx_futures_order(pair, side, leverage, margin_usdt):
     try:
-        url = f"{COINDCX_BASE_URL}/exchange/v1/orders/create"
+        # CoinDCX Futures Endpoint
+        url = f"{COINDCX_BASE_URL}/exchange/v1/derivatives/futures/orders/create"
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
         timeStamp = int(round(time.time() * 1000))
-        
+
+        # SOL Futures Contract calculation (~$75/SOL)
+        # Margin ($6) x Leverage (10x) = $60 Total Position Size -> ~0.8 SOL
+        total_qty = round((float(margin_usdt) * int(leverage)) / 75.0, 2)
+        if total_qty <= 0:
+            total_qty = 0.1
+
         body = {
             "timestamp": timeStamp,
             "order_type": "market_order",
-            "side": side.lower(),
-            "market": symbol,
-            "total_quantity": float(quantity)
+            "side": side.lower(),       # buy / sell
+            "pair": pair,               # B-SOL_USDT
+            "leverage": int(leverage),   # 10
+            "total_quantity": total_qty
         }
-        
+
+        # Strict JSON string formatting for Futures HMAC Signature
         json_body = json.dumps(body, separators=(',', ':'))
         signature = hmac.new(secret_bytes, json_body.encode('utf-8'), hashlib.sha256).hexdigest()
 
@@ -37,16 +46,15 @@ def place_coindcx_order(symbol, side, quantity):
         }
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
-        
-        # Safely handle empty or non-JSON responses
+
         if res.text:
             try:
                 return res.json()
             except Exception:
-                return {"status_code": res.status_code, "response": res.text}
+                return {"status_code": res.status_code, "raw_response": res.text}
         else:
-            return {"status_code": res.status_code, "message": "Server returned empty response"}
-            
+            return {"status_code": res.status_code, "message": "Check API key Futures permissions"}
+
     except Exception as e:
         return {"error": str(e)}
 
@@ -58,21 +66,16 @@ def home():
 def execute():
     data = request.json
     raw_coin = data.get('coin', '').strip().upper()
+    leverage = data.get('leverage', 10)
     margin = data.get('margin', 6)
 
     clean_coin = raw_coin.replace("B-", "").replace("_USDT", "").replace("USDT", "").strip()
-    coindcx_sym = f"{clean_coin}USDT"
+    coindcx_futures_pair = f"B-{clean_coin}_USDT"
 
-    # Converting USDT margin to rough SOL quantity for Spot/Futures Order Execution
-    # Assuming SOL ~ $75, 6 USDT gives approx 0.08 SOL
-    sol_qty = round(float(margin) / 75.0, 2)
-    if sol_qty <= 0:
-        sol_qty = 0.08
-
-    dcx_order = place_coindcx_order(coindcx_sym, "buy", sol_qty)
+    dcx_order = place_coindcx_futures_order(coindcx_futures_pair, "buy", leverage, margin)
 
     return jsonify({
-        "coindcx_response": dcx_order
+        "coindcx_futures_response": dcx_order
     })
 
 if __name__ == '__main__':
