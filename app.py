@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 import requests
 import hmac
 import hashlib
@@ -11,6 +11,7 @@ app = Flask(__name__)
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
 
+# Updated CoinDCX Base URL
 COINDCX_BASE_URL = "https://api.coindcx.com"
 
 def place_coindcx_order(symbol, side, leverage, margin):
@@ -38,7 +39,13 @@ def place_coindcx_order(symbol, side, leverage, margin):
         }
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
-        return res.json()
+        
+        # Safe JSON Parsing
+        try:
+            return res.json()
+        except Exception:
+            return {"status_code": res.status_code, "raw_response": res.text}
+            
     except Exception as e:
         return {"error": str(e)}
 
@@ -91,7 +98,7 @@ def home():
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 status.style.color = '#00e676';
-                status.innerText = "COINDCX RESPONSE:\n" + JSON.stringify(data.coindcx_response, null, 2);
+                status.innerText = "COINDCX:\n" + JSON.stringify(data.coindcx_response, null, 2);
             })
             .catch(function(err) {
                 status.style.color = '#ff5252';
