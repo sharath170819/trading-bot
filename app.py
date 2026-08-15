@@ -7,7 +7,7 @@ import json
 
 app = Flask(__name__)
 
-# ==================== YOUR API KEYS ====================
+# ==================== YOUR COINDCX API KEYS ====================
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
 
@@ -19,23 +19,22 @@ def place_coindcx_order(symbol, side, leverage, quantity):
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
         timeStamp = int(round(time.time() * 1000))
         
+        # CoinDCX Futures-ന് കൃത്യമായ Payload Structure
         body = {
             "timestamp": timeStamp,
             "order_type": "market_order",
-            "side": side.lower(),
-            "pair": symbol,
-            "leverage": int(leverage),
-            "total_quantity": float(quantity)
+            "side": side.lower(),        # 'buy' or 'sell'
+            "pair": symbol,              # e.g., 'B-SOL_USDT'
+            "leverage": int(leverage),   # Integer value (10)
+            "total_quantity": float(quantity) # Quantity of SOL (e.g. 0.1 or 1)
         }
         
         json_body = json.dumps(body, separators=(',', ':'))
         signature = hmac.new(secret_bytes, json_body.encode('utf-8'), hashlib.sha256).hexdigest()
 
-        # Both key variations added to ensure authentication token is recognized
         headers = {
             'Content-Type': 'application/json',
             'X-AUTH-APIKEY': COINDCX_API_KEY,
-            'X-AUTH-KEY': COINDCX_API_KEY,
             'X-AUTH-SIGNATURE': signature
         }
 
@@ -45,8 +44,8 @@ def place_coindcx_order(symbol, side, leverage, quantity):
             return res.json()
         except Exception:
             return {
-                "status_code": res.status_code,
-                "raw_response": res.text
+                "status_code": res.status_code, 
+                "raw_response": res.text if res.text else "No error text returned by CoinDCX"
             }
             
     except Exception as e:
@@ -59,11 +58,11 @@ def home():
 @app.route('/execute', methods=['POST'])
 def execute():
     data = request.json
-    raw_coin = data.get('coin')
+    raw_coin = data.get('coin', '').strip().upper()
     leverage = data.get('leverage')
-    margin = data.get('margin')
+    margin = data.get('margin') # Using this value as quantity
 
-    clean_coin = raw_coin.upper().replace("B-", "").replace("_USDT", "").replace("USDT", "").strip()
+    clean_coin = raw_coin.replace("B-", "").replace("_USDT", "").replace("USDT", "").strip()
     coindcx_sym = f"B-{clean_coin}_USDT"
 
     dcx_order = place_coindcx_order(coindcx_sym, "buy", leverage, margin)
