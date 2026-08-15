@@ -103,32 +103,36 @@ HTML_PAGE = """
         <input type="text" id="coin" placeholder="Coin Name" value="SOL">
         <input type="number" id="leverage" placeholder="Leverage" value="10">
         <input type="number" id="margin" placeholder="Margin USDT" value="1">
-        <button onclick="runHedge()">EXECUTE LIVE HEDGE</button>
+        <button type="button" onclick="runHedge()">EXECUTE LIVE HEDGE</button>
         <div id="status">Ready...</div>
     </div>
 
     <script>
         function runHedge() {
-            const status = document.getElementById('status');
+            var status = document.getElementById('status');
             status.style.color = '#ffeb3b';
             status.innerText = 'Connecting to Exchanges... Please wait.';
+
+            var coinVal = document.getElementById('coin').value;
+            var levVal = document.getElementById('leverage').value;
+            var marginVal = document.getElementById('margin').value;
 
             fetch('/execute', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    coin: document.getElementById('coin').value,
-                    leverage: document.getElementById('leverage').value,
-                    margin: document.getElementById('margin').value
+                    coin: coinVal,
+                    leverage: levVal,
+                    margin: marginVal
                 })
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
                 status.style.color = '#00e676';
-                status.innerText = "COINDCX:\n" + JSON.stringify(data.coindcx_response, null, 2) + 
-                                   "\n\nMUDREX:\n" + JSON.stringify(data.mudrex_response, null, 2);
+                status.innerText = "COINDCX:\\n" + JSON.stringify(data.coindcx_response, null, 2) + 
+                                   "\\n\\nMUDREX:\\n" + JSON.stringify(data.mudrex_response, null, 2);
             })
-            .catch(err => {
+            .catch(function(err) {
                 status.style.color = '#ff5252';
                 status.innerText = 'Server Error: ' + err;
             });
