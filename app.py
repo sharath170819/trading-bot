@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, jsonify
+from flask import Flask, render_template, request, jsonify
 import requests
 import hmac
 import hashlib
@@ -10,9 +10,6 @@ app = Flask(__name__)
 # ==================== UPDATED API KEYS ====================
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
-
-MUDREX_API_KEY = "97f6c7b7-a80e-4423-880c-b217c75153bc"
-MUDREX_SECRET_KEY = "Hrx8jVBcmgoGnhhwIPMwIC3f8I9TzAli"
 
 COINDCX_BASE_URL = "https://api.coindcx.com"
 
@@ -45,7 +42,9 @@ def place_coindcx_order(symbol, side, leverage, margin):
     except Exception as e:
         return {"error": str(e)}
 
-HTML_PAGE = """
+@app.route('/')
+def home():
+    return '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -74,7 +73,7 @@ HTML_PAGE = """
         function runHedge() {
             var status = document.getElementById('status');
             status.style.color = '#ffeb3b';
-            status.innerText = 'Connecting to Exchanges... Please wait.';
+            status.innerText = 'Connecting to Exchange... Please wait.';
 
             var coinVal = document.getElementById('coin').value;
             var levVal = document.getElementById('leverage').value;
@@ -92,7 +91,7 @@ HTML_PAGE = """
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 status.style.color = '#00e676';
-                status.innerText = "COINDCX:\\n" + JSON.stringify(data.coindcx_response, null, 2);
+                status.innerText = "COINDCX RESPONSE:\n" + JSON.stringify(data.coindcx_response, null, 2);
             })
             .catch(function(err) {
                 status.style.color = '#ff5252';
@@ -102,11 +101,7 @@ HTML_PAGE = """
     </script>
 </body>
 </html>
-"""
-
-@app.route('/')
-def home():
-    return render_template_string(HTML_PAGE)
+'''
 
 @app.route('/execute', methods=['POST'])
 def execute():
