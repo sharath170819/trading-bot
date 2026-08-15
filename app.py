@@ -7,32 +7,33 @@ import json
 
 app = Flask(__name__)
 
-# ==================== COINDCX API KEYS ====================
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
 
 COINDCX_BASE_URL = "https://api.coindcx.com"
 
-def place_coindcx_futures_order(pair, side, leverage, margin_usdt):
+def place_coindcx_futures_order(symbol, side, leverage, margin_usdt):
     try:
         url = f"{COINDCX_BASE_URL}/exchange/v1/derivatives/futures/orders/create"
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
         timeStamp = int(round(time.time() * 1000))
 
-        # SOL Price ~ $75.5
-        # Quantity calculation formatted properly for Futures contract decimal precision
+        # SOL Price ~ $75.5 -> Position Size = (Margin * Leverage) / Price
         calc_qty = (float(margin_usdt) * int(leverage)) / 75.5
-        total_qty = round(calc_qty, 1)  # Futures requires 1 decimal precision for SOL
+        total_qty = round(calc_qty, 2)
         if total_qty <= 0:
             total_qty = 0.1
 
+        # Strict Payload Structure for CoinDCX Futures API
         body = {
             "timestamp": timeStamp,
             "order_type": "market_order",
-            "side": side.lower(),       # "buy"
-            "pair": pair,               # "B-SOL_USDT"
-            "leverage": int(leverage),   # 10
-            "total_quantity": total_qty
+            "side": side.lower(),
+            "pair": symbol,
+            "market": symbol,
+            "leverage": int(leverage),
+            "total_quantity": total_qty,
+            "price": 0
         }
 
         json_body = json.dumps(body, separators=(',', ':'))
@@ -46,14 +47,13 @@ def place_coindcx_futures_order(pair, side, leverage, margin_usdt):
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
 
-        # Handle API response accurately
-        if res.status_code == 200:
-            return res.json()
-        else:
+        if res.text:
             try:
-                return {"status_code": res.status_code, "error_details": res.json()}
+                return res.json()
             except Exception:
                 return {"status_code": res.status_code, "raw_response": res.text}
+        else:
+            return {"status_code": res.status_code, "error": "No response text received"}
 
     except Exception as e:
         return {"error": str(e)}
