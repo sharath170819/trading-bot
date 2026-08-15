@@ -11,12 +11,10 @@ app = Flask(__name__)
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
 
-# Updated Futures URL Base
-COINDCX_BASE_URL = "https://public.coindcx.com"
+COINDCX_BASE_URL = "https://api.coindcx.com"
 
 def place_coindcx_order(symbol, side, leverage, quantity):
     try:
-        # Correct Official Endpoint for CoinDCX Futures
         url = f"{COINDCX_BASE_URL}/exchange/v1/derivatives/futures/orders/create"
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
         timeStamp = int(round(time.time() * 1000))
@@ -33,12 +31,12 @@ def place_coindcx_order(symbol, side, leverage, quantity):
         json_body = json.dumps(body, separators=(',', ':'))
         signature = hmac.new(secret_bytes, json_body.encode('utf-8'), hashlib.sha256).hexdigest()
 
-        # Added User-Agent header to pass Cloudflare checks
+        # Both key variations added to ensure authentication token is recognized
         headers = {
             'Content-Type': 'application/json',
             'X-AUTH-APIKEY': COINDCX_API_KEY,
-            'X-AUTH-SIGNATURE': signature,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            'X-AUTH-KEY': COINDCX_API_KEY,
+            'X-AUTH-SIGNATURE': signature
         }
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
@@ -48,8 +46,7 @@ def place_coindcx_order(symbol, side, leverage, quantity):
         except Exception:
             return {
                 "status_code": res.status_code,
-                "raw_response": res.text,
-                "message": "HTML Error returned. Please verify Futures API permissions on CoinDCX."
+                "raw_response": res.text
             }
             
     except Exception as e:
