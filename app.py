@@ -7,8 +7,10 @@ import json
 
 app = Flask(__name__)
 
+# ==================== YOUR API KEYS ====================
 COINDCX_API_KEY = "97a302c3085279b828c3f8a39ad468185a75f4798de60bd8"
 COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184939536"
+
 COINDCX_BASE_URL = "https://api.coindcx.com"
 
 def place_coindcx_order(symbol, side, leverage, margin):
@@ -17,13 +19,14 @@ def place_coindcx_order(symbol, side, leverage, margin):
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
         timeStamp = int(round(time.time() * 1000))
         
+        # Correct Payload parameters for CoinDCX Futures API
         body = {
             "timestamp": timeStamp,
             "order_type": "market_order",
-            "side": side.lower(),
-            "pair": symbol,
-            "leverage": float(leverage),
-            "margin": float(margin)
+            "side": side.lower(),       # 'buy' or 'sell'
+            "pair": symbol,             # e.g., 'B-SOL_USDT'
+            "leverage": int(leverage),  # Integer value
+            "total_quantity": float(margin) # Quantity / Margin
         }
         
         json_body = json.dumps(body, separators=(',', ':'))
@@ -36,6 +39,7 @@ def place_coindcx_order(symbol, side, leverage, margin):
         }
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
+        
         try:
             return res.json()
         except Exception:
