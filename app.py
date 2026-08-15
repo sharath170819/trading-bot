@@ -14,9 +14,9 @@ COINDCX_SECRET_KEY = "27345af623a67eed69-fa143b9e049a50e51b8ef2ef0dd5ce-f9fc61c1
 MUDREX_API_KEY = "97f6c7b7-a80e-4423-880c-b217c75153bc"
 MUDREX_SECRET_KEY = "Hrx8jVBcmgoGnhhwIPMwIC3f8I9TzAli"
 
-# Base URLs
+# Corrected API Base Endpoints
 COINDCX_BASE_URL = "https://api.coindcx.com"
-MUDREX_BASE_URL = "https://api.mudrex.com"
+MUDREX_BASE_URL = "https://trade.mudrex.com/fapi/v1"
 
 def get_exchange_symbols(raw_coin):
     clean_coin = raw_coin.upper().replace("B-", "").replace("_USDT", "").replace("USDT", "").strip()
@@ -55,29 +55,23 @@ def place_coindcx_order(symbol, side, leverage, margin):
 
 def place_mudrex_order(symbol, side, leverage, margin):
     try:
-        url = f"{MUDREX_BASE_URL}/v1/futures/orders"
-        secret_bytes = bytes(MUDREX_SECRET_KEY, encoding='utf-8')
-        timeStamp = int(round(time.time() * 1000))
+        url = f"{MUDREX_BASE_URL}/order"
         
         body = {
-            "timestamp": timeStamp,
             "symbol": symbol,
-            "side": side,
+            "side": side.upper(),
             "type": "MARKET",
             "leverage": float(leverage),
             "margin": float(margin)
         }
-        
-        json_body = json.dumps(body)
-        signature = hmac.new(secret_bytes, json_body.encode('utf-8'), hashlib.sha256).hexdigest()
 
+        # Updated Mudrex API Authentication Header
         headers = {
             'Content-Type': 'application/json',
-            'x-api-key': MUDREX_API_KEY,
-            'x-api-signature': signature
+            'X-Authentication': MUDREX_SECRET_KEY
         }
 
-        res = requests.post(url, data=json_body, headers=headers, timeout=10)
+        res = requests.post(url, json=body, headers=headers, timeout=10)
         return res.json()
     except Exception as e:
         return {"error": str(e)}
@@ -129,8 +123,8 @@ HTML_PAGE = """
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 status.style.color = '#00e676';
-                status.innerText = "COINDCX:\\n" + JSON.stringify(data.coindcx_response, null, 2) + 
-                                   "\\n\\nMUDREX:\\n" + JSON.stringify(data.mudrex_response, null, 2);
+                status.innerText = "COINDCX:\n" + JSON.stringify(data.coindcx_response, null, 2) + 
+                                   "\n\nMUDREX:\n" + JSON.stringify(data.mudrex_response, null, 2);
             })
             .catch(function(err) {
                 status.style.color = '#ff5252';
