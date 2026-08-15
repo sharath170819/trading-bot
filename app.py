@@ -13,20 +13,20 @@ COINDCX_SECRET_KEY = "dc436326dd5c837feeaf2ab0eacdbaa6149cb4688167bb96effaa32184
 
 COINDCX_BASE_URL = "https://api.coindcx.com"
 
-def place_coindcx_order(symbol, side, leverage, margin):
+def place_coindcx_order(symbol, side, leverage, quantity):
     try:
         url = f"{COINDCX_BASE_URL}/exchange/v1/derivatives/futures/orders/create"
         secret_bytes = bytes(COINDCX_SECRET_KEY, encoding='utf-8')
         timeStamp = int(round(time.time() * 1000))
         
-        # Correct Payload parameters for CoinDCX Futures API
+        # Payload for CoinDCX Futures Market Order
         body = {
             "timestamp": timeStamp,
             "order_type": "market_order",
             "side": side.lower(),       # 'buy' or 'sell'
             "pair": symbol,             # e.g., 'B-SOL_USDT'
-            "leverage": int(leverage),  # Integer value
-            "total_quantity": float(margin) # Quantity / Margin
+            "leverage": int(leverage),  # Leverage level
+            "total_quantity": float(quantity) # Quantity of coin (e.g. 1 or 0.1)
         }
         
         json_body = json.dumps(body, separators=(',', ':'))
@@ -40,10 +40,15 @@ def place_coindcx_order(symbol, side, leverage, margin):
 
         res = requests.post(url, data=json_body, headers=headers, timeout=10)
         
+        # Detailed Response Parsing for Debugging
         try:
             return res.json()
         except Exception:
-            return {"status_code": res.status_code, "raw_response": res.text}
+            return {
+                "status_code": res.status_code, 
+                "raw_response": res.text if res.text else "Empty response body from CoinDCX",
+                "headers": dict(res.headers)
+            }
             
     except Exception as e:
         return {"error": str(e)}
@@ -57,7 +62,7 @@ def execute():
     data = request.json
     raw_coin = data.get('coin')
     leverage = data.get('leverage')
-    margin = data.get('margin')
+    margin = data.get('margin') # treating input as quantity/size
 
     clean_coin = raw_coin.upper().replace("B-", "").replace("_USDT", "").replace("USDT", "").strip()
     coindcx_sym = f"B-{clean_coin}_USDT"
